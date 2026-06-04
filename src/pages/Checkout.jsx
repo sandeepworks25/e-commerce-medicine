@@ -1,31 +1,59 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { CheckCircle2, LocateFixed, MapPin, Navigation, PackageCheck } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { CheckCircle2, ChevronDown, LocateFixed, MapPin, Navigation, PackageCheck, PlusCircle } from 'lucide-react';
 import { useCartStore, useAuthStore, usePreferencesStore, useOrdersStore } from '../store/index.js';
 import { useToast } from '../components/common/Toast';
 import { validateMobile, validatePincode, generateOrderNumber, calculateSubtotal, calculateDeliveryCharges, formatCurrency } from '../utils/helpers.js';
 
+const createBlankAddress = (user) => ({
+  fullName: user?.name || '',
+  mobile: '',
+  houseNumber: '',
+  area: '',
+  landmark: 'Pinned from device location',
+  city: '',
+  state: '',
+  pincode: '',
+});
+
+const isSameAddress = (firstAddress, secondAddress) => {
+  if (!firstAddress || !secondAddress) return false;
+
+  return ['fullName', 'mobile', 'houseNumber', 'area', 'city', 'state', 'pincode'].every(
+    field => firstAddress[field] === secondAddress[field]
+  );
+};
+
+const getPreferredAddress = (user, savedAddresses, selectedAddress) => {
+  const savedSelectedAddress = selectedAddress?.id
+    ? savedAddresses.find(address => address.id === selectedAddress.id)
+    : savedAddresses.find(address => isSameAddress(address, selectedAddress));
+  const preferredAddress = savedSelectedAddress || savedAddresses[0] || selectedAddress;
+
+  return {
+    ...createBlankAddress(user),
+    ...(preferredAddress || {}),
+    fullName: preferredAddress?.fullName || user?.name || '',
+  };
+};
+
 const Checkout = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { items, clearCart } = useCartStore();
   const { user, isLoggedIn } = useAuthStore();
-  const { addAddress, savedAddresses, setSelectedAddress, appliedCoupon, removeCoupon } = usePreferencesStore();
+  const { addAddress, savedAddresses, selectedAddress, setSelectedAddress, appliedCoupon, removeCoupon } = usePreferencesStore();
   const { createOrder } = useOrdersStore();
   const { addToast } = useToast();
   const [isLocating, setIsLocating] = useState(false);
   const [mapLocation, setMapLocation] = useState({ lat: '28.58680', lng: '77.20796' });
-  const [address, setAddress] = useState({
-    fullName: user?.name || '',
-    mobile: '',
-    houseNumber: '',
-    area: '',
-    landmark: 'Pinned from device location',
-    city: '',
-    state: '',
-    pincode: '',
-  });
+  const [address, setAddress] = useState(() => getPreferredAddress(user, savedAddresses, selectedAddress));
+  const [buyNowItems] = useState(() => JSON.parse(localStorage.getItem('buy_now_items')) || []);
+  const [isAddressDropdownOpen, setIsAddressDropdownOpen] = useState(false);
+  const isBuyNowCheckout = searchParams.get('buyNow') === '1';
+  const checkoutItems = isBuyNowCheckout ? buyNowItems : items;
 
-  const subtotal = calculateSubtotal(items);
+  const subtotal = calculateSubtotal(checkoutItems);
   const discountAmount = Math.min(appliedCoupon?.discountAmount || 0, subtotal);
   const delivery = calculateDeliveryCharges(subtotal);
   const total = Math.max(subtotal - discountAmount, 0) + delivery;
@@ -38,11 +66,20 @@ const Checkout = () => {
     address.state.trim() &&
     validatePincode(address.pincode)
   ), [address]);
+  const deliveryAddressMessage = savedAddresses.length > 0
+    ? address.id ? 'Saved address selected by default.' : 'New address form selected.'
+    : 'Current location pinned on map.';
+  const selectedSavedAddress = savedAddresses.find(savedAddress => savedAddress.id === address.id);
+  const addressDropdownLabel = selectedSavedAddress
+    ? `${selectedSavedAddress.fullName} - ${selectedSavedAddress.city}, ${selectedSavedAddress.pincode}`
+    : 'Add new address';
 
-  if (items.length === 0) {
+  if (checkoutItems.length === 0) {
     return (
       <div className="mx-auto max-w-7xl px-4 py-12 text-center">
-        <p className="mb-4 text-xl text-slate-600">Your cart is empty</p>
+        <p className="mb-4 text-xl text-slate-600">
+          {isBuyNowCheckout ? 'No product selected for checkout' : 'Your cart is empty'}
+        </p>
         <button onClick={() => navigate('/products')} className="btn-primary">
           Continue Shopping
         </button>
@@ -54,7 +91,7 @@ const Checkout = () => {
     return (
       <div className="mx-auto max-w-7xl px-4 py-12 text-center">
         <p className="mb-4 text-xl text-slate-600">Please login to checkout</p>
-        <button onClick={() => navigate('/login?redirect=/checkout')} className="btn-primary">
+        <button onClick={() => navigate(`/login?redirect=${encodeURIComponent(isBuyNowCheckout ? '/checkout?buyNow=1' : '/checkout')}`)} className="btn-primary">
           Login
         </button>
       </div>
@@ -62,7 +99,28 @@ const Checkout = () => {
   }
 
   const updateAddress = (field, value) => {
-    setAddress(prev => ({ ...prev, [field]: value }));
+    setAddress(prev => {
+      const nextAddress = { ...prev, [field]: value };
+      delete nextAddress.id;
+      return nextAddress;
+    });
+  };
+
+  const handleSelectSavedAddress = (savedAddress) => {
+    const nextAddress = {
+      ...createBlankAddress(user),
+      ...savedAddress,
+    };
+    setAddress(nextAddress);
+    setSelectedAddress(savedAddress);
+    setIsAddressDropdownOpen(false);
+    addToast('Saved address selected', 'success');
+  };
+
+  const handleAddNewAddress = () => {
+    setAddress(createBlankAddress(user));
+    setIsAddressDropdownOpen(false);
+    addToast('Add a new delivery address', 'info');
   };
 
   const handleUseCurrentLocation = () => {
@@ -102,12 +160,18 @@ const Checkout = () => {
     }
 
     const orderAddress = { ...address };
-    addAddress(orderAddress);
-    setSelectedAddress(orderAddress);
+    const savedAddress = savedAddresses.find(savedAddress => (
+      savedAddress.id === orderAddress.id || isSameAddress(savedAddress, orderAddress)
+    ));
+
+    if (!savedAddress) {
+      addAddress(orderAddress);
+    }
+    setSelectedAddress(savedAddress || orderAddress);
 
     createOrder({
       orderNumber: generateOrderNumber(),
-      items,
+      items: checkoutItems,
       deliveryAddress: `${address.houseNumber}, ${address.area}, ${address.city}, ${address.state} ${address.pincode}`,
       deliverySlot: 'Standard delivery',
       paymentMethod: 'Pay on delivery',
@@ -118,8 +182,12 @@ const Checkout = () => {
       delivery,
       totalAmount: total,
     });
-    clearCart();
-    removeCoupon();
+    if (isBuyNowCheckout) {
+      localStorage.removeItem('buy_now_items');
+    } else {
+      clearCart();
+      removeCoupon();
+    }
     addToast('Order placed successfully!', 'success');
     navigate('/track-order');
   };
@@ -154,8 +222,69 @@ const Checkout = () => {
             </div>
 
             <div className="mb-6 rounded-lg bg-teal-50 px-4 py-3 text-sm font-bold text-teal-700">
-              Current location pinned on map.
+              {deliveryAddressMessage}
             </div>
+
+            {savedAddresses.length > 0 && (
+              <div className="mb-6">
+                <label className="mb-2 block text-sm font-extrabold text-slate-950">Saved address</label>
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setIsAddressDropdownOpen(prev => !prev)}
+                    className="flex min-h-12 w-full items-center justify-between gap-3 rounded-lg border border-slate-300 bg-white px-4 py-3 text-left text-sm font-bold text-slate-950 transition hover:border-teal-400 focus:border-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-100"
+                    aria-expanded={isAddressDropdownOpen}
+                  >
+                    <span className="min-w-0 truncate">{addressDropdownLabel}</span>
+                    <ChevronDown className={`shrink-0 text-slate-500 transition ${isAddressDropdownOpen ? 'rotate-180' : ''}`} size={18} />
+                  </button>
+
+                  {isAddressDropdownOpen && (
+                    <div className="absolute z-20 mt-2 max-h-80 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white p-2 shadow-lg">
+                      <button
+                        type="button"
+                        onClick={handleAddNewAddress}
+                        className={`flex w-full items-start justify-between gap-3 rounded-md px-3 py-3 text-left transition ${
+                          address.id ? 'hover:bg-slate-50' : 'bg-teal-50 text-teal-900'
+                        }`}
+                      >
+                        <span>
+                          <span className="block text-sm font-bold">Add new address</span>
+                          <span className="mt-1 block text-xs leading-5 text-slate-600">Enter a fresh delivery address for this order.</span>
+                        </span>
+                        <PlusCircle className="mt-0.5 shrink-0 text-teal-700" size={18} />
+                      </button>
+
+                      <div className="my-2 border-t border-slate-100" />
+
+                      {savedAddresses.map(savedAddress => {
+                        const isSelected = address.id === savedAddress.id;
+
+                        return (
+                          <button
+                            key={savedAddress.id}
+                            type="button"
+                            onClick={() => handleSelectSavedAddress(savedAddress)}
+                            className={`flex w-full items-start justify-between gap-3 rounded-md px-3 py-3 text-left transition ${
+                              isSelected ? 'bg-teal-50 text-teal-900' : 'hover:bg-slate-50'
+                            }`}
+                          >
+                            <span className="min-w-0">
+                              <span className="block text-sm font-bold">{savedAddress.fullName}</span>
+                              <span className="mt-1 block text-xs leading-5 text-slate-600">
+                                {savedAddress.houseNumber}, {savedAddress.area}, {savedAddress.city}, {savedAddress.state} {savedAddress.pincode}
+                              </span>
+                              <span className="mt-1 block text-xs font-semibold text-slate-700">{savedAddress.mobile}</span>
+                            </span>
+                            {isSelected && <CheckCircle2 className="mt-0.5 shrink-0 text-teal-700" size={18} />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block">
@@ -216,7 +345,7 @@ const Checkout = () => {
           <aside className="h-fit rounded-lg border border-slate-200 bg-white p-5 sm:p-6 lg:sticky lg:top-24">
             <h2 className="mb-6 text-xl font-extrabold text-slate-950">Order summary</h2>
             <div className="space-y-4">
-              {items.map(item => (
+              {checkoutItems.map(item => (
                 <div key={item.id} className="flex justify-between gap-4 text-sm">
                   <span className="line-clamp-1 text-slate-600">{item.name} x {item.quantity}</span>
                   <span className="font-extrabold text-slate-950">{formatCurrency(item.price * item.quantity)}</span>

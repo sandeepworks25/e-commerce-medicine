@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { dummyProducts, dummyReviews } from '../data/dummy';
 import ProductCard from '../components/products/ProductCard';
@@ -35,12 +35,17 @@ const ProductDetail = () => {
   const [reviewForm, setReviewForm] = useState({ rating: 5, title: '', content: '' });
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const [loginPromptType, setLoginPromptType] = useState('review');
   const { items, addToCart } = useCartStore();
   const { isLoggedIn } = useAuthStore();
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlistStore();
   const { addToast } = useToast();
   const inWishlist = product && isInWishlist(product.id);
   const cartQuantity = items.find(item => item.id === product?.id)?.quantity || 0;
+
+  useEffect(() => {
+    setQuantity(cartQuantity > 0 ? cartQuantity : 1);
+  }, [cartQuantity, product?.id]);
 
   if (!product) {
     return (
@@ -67,9 +72,26 @@ const ProductDetail = () => {
   };
 
   const handleAddToCart = () => {
+    if (cartQuantity > 0) {
+      navigate('/cart');
+      return;
+    }
+
     addToCart(product, quantity);
     addToast(`${product.name} added to cart!`, 'success');
-    navigate(`/cart?added=${product.id}`);
+  };
+
+  const handleBuyNow = () => {
+    localStorage.setItem('buy_now_items', JSON.stringify([{ ...product, quantity }]));
+
+    if (!isLoggedIn) {
+      setLoginPromptType('buy-now');
+      setShowLoginPrompt(true);
+      return;
+    }
+
+    addToast(`${product.name} is ready for checkout`, 'success');
+    navigate('/checkout?buyNow=1');
   };
 
   const handleWishlist = () => {
@@ -109,6 +131,7 @@ const ProductDetail = () => {
   const handleOpenReview = () => {
     setActiveTab('reviews');
     if (!isLoggedIn) {
+      setLoginPromptType('review');
       setShowLoginPrompt(true);
       return;
     }
@@ -289,14 +312,23 @@ const ProductDetail = () => {
               </div>
 
               {/* Action Buttons */}
-              <div className="mb-6 flex gap-2 sm:gap-3">
+              <div className="mb-6 grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_3rem] gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_3.5rem] sm:gap-3">
                 <button
                   onClick={handleAddToCart}
                   disabled={product.stock === 0}
-                  className="btn-primary flex flex-1 items-center justify-center gap-2 py-3 text-sm disabled:opacity-50 sm:text-base"
+                  className="btn-primary flex min-h-12 items-center justify-center gap-2 whitespace-nowrap px-4 py-3 text-sm disabled:opacity-50 sm:text-base"
                 >
                   <ShoppingCart size={20} />
-                  {cartQuantity > 0 ? `Add to Cart (${cartQuantity} in cart)` : 'Add to Cart'}
+                  {cartQuantity > 0 ? 'Go to Cart' : 'Add to Cart'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleBuyNow}
+                  disabled={product.stock === 0}
+                  className="inline-flex min-h-12 items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-yellow-400 px-4 py-3 text-sm font-bold text-slate-950 transition hover:bg-yellow-300 disabled:opacity-50 sm:text-base"
+                >
+                  <LockKeyhole size={20} />
+                  Buy Now
                 </button>
                 <button
                   onClick={handleWishlist}
@@ -537,7 +569,7 @@ const ProductDetail = () => {
       <Modal
         isOpen={showLoginPrompt}
         onClose={() => setShowLoginPrompt(false)}
-        title="Login to add review"
+        title={loginPromptType === 'buy-now' ? 'Login to buy now' : 'Login to add review'}
       >
         <div className="text-center">
           <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-full bg-teal-50 text-teal-700">
@@ -545,12 +577,14 @@ const ProductDetail = () => {
           </div>
           <h3 className="text-xl font-bold text-slate-950">Please login first</h3>
           <p className="mt-2 text-sm leading-6 text-slate-500">
-            Login to add a verified customer rating and review for this product.
+            {loginPromptType === 'buy-now'
+              ? 'Login to continue checkout for this product.'
+              : 'Login to add a verified customer rating and review for this product.'}
           </p>
           <div className="mt-6 grid gap-3 sm:grid-cols-2">
             <button
               type="button"
-              onClick={() => navigate(`/login?redirect=${encodeURIComponent(`/products/${product.id}`)}`)}
+              onClick={() => navigate(`/login?redirect=${encodeURIComponent(loginPromptType === 'buy-now' ? '/checkout?buyNow=1' : `/products/${product.id}`)}`)}
               className="btn-primary inline-flex items-center justify-center gap-2 py-3"
             >
               <LockKeyhole size={18} />
@@ -558,7 +592,7 @@ const ProductDetail = () => {
             </button>
             <button
               type="button"
-              onClick={() => navigate(`/register?redirect=${encodeURIComponent(`/products/${product.id}`)}`)}
+              onClick={() => navigate(`/register?redirect=${encodeURIComponent(loginPromptType === 'buy-now' ? '/checkout?buyNow=1' : `/products/${product.id}`)}`)}
               className="btn-outline inline-flex items-center justify-center gap-2 py-3"
             >
               <UserPlus size={18} />

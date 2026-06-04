@@ -1,26 +1,33 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { dummyProducts, dummyCategories, dummyBlogs, dummyFAQs, fetchHomeBanners, siteBanners } from '../data/dummy';
 import ProductCard from '../components/products/ProductCard';
 import BlogCard from '../components/home/BlogCard';
+import Modal from '../components/common/Modal.jsx';
+import { useAuthStore } from '../store/index.js';
 import {
   BadgeCheck,
   ChevronDown,
   HeartPulse,
+  LockKeyhole,
   PackageCheck,
   ShieldCheck,
   Stethoscope,
   Truck,
+  UserPlus,
   Zap,
 } from 'lucide-react';
 
 const Home = () => {
+  const navigate = useNavigate();
+  const { isLoggedIn } = useAuthStore();
   const topProducts = dummyProducts.slice(0, 8);
   const featuredBlogs = dummyBlogs.slice(0, 3);
 
   const [activeFAQ, setActiveFAQ] = useState(0);
   const [bannerSlides, setBannerSlides] = useState([]);
   const [activeBanner, setActiveBanner] = useState(0);
+  const [showPrescriptionLoginPrompt, setShowPrescriptionLoginPrompt] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -45,6 +52,20 @@ const Home = () => {
 
     return () => window.clearInterval(intervalId);
   }, [bannerSlides.length]);
+
+  const handleUploadPrescriptionClick = () => {
+    if (isLoggedIn) {
+      navigate('/upload-prescription');
+      return;
+    }
+
+    setShowPrescriptionLoginPrompt(true);
+  };
+
+  const goToAuth = (path) => {
+    setShowPrescriptionLoginPrompt(false);
+    navigate(`${path}?redirect=${encodeURIComponent('/upload-prescription')}`);
+  };
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -78,9 +99,13 @@ const Home = () => {
                 <Link to="/products" className="inline-flex h-10 items-center justify-center rounded-lg bg-white px-4 text-xs font-bold text-slate-950 hover:bg-slate-100 sm:h-11 sm:px-5 sm:text-sm">
                   Shop medicines
                 </Link>
-                <Link to="/upload-prescription" className="inline-flex h-10 items-center justify-center rounded-lg border border-white/40 px-4 text-xs font-bold text-white hover:bg-white/10 sm:h-11 sm:px-5 sm:text-sm">
+                <button
+                  type="button"
+                  onClick={handleUploadPrescriptionClick}
+                  className="inline-flex h-10 items-center justify-center rounded-lg border border-white/40 px-4 text-xs font-bold text-white hover:bg-white/10 sm:h-11 sm:px-5 sm:text-sm"
+                >
                   Upload prescription
-                </Link>
+                </button>
               </div>
             </div>
             {bannerSlides.length > 1 && (
@@ -101,6 +126,40 @@ const Home = () => {
           </div>
         </div>
       </section>
+
+      <Modal
+        isOpen={showPrescriptionLoginPrompt}
+        onClose={() => setShowPrescriptionLoginPrompt(false)}
+        title="Login to upload prescription"
+      >
+        <div className="text-center">
+          <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-full bg-teal-50 text-teal-700">
+            <LockKeyhole size={28} />
+          </div>
+          <h3 className="text-xl font-bold text-slate-950">Please login first</h3>
+          <p className="mt-2 text-sm leading-6 text-slate-500">
+            Login to upload prescriptions and track their review status.
+          </p>
+          <div className="mt-6 grid gap-3 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => goToAuth('/login')}
+              className="btn-primary inline-flex items-center justify-center gap-2 py-3"
+            >
+              <LockKeyhole size={18} />
+              Login
+            </button>
+            <button
+              type="button"
+              onClick={() => goToAuth('/register')}
+              className="btn-outline inline-flex items-center justify-center gap-2 py-3"
+            >
+              <UserPlus size={18} />
+              Create Account
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Trust Strip */}
       <section className="bg-white pb-6 pt-4">
@@ -155,7 +214,7 @@ const Home = () => {
                     className="h-[82px] w-full rounded-md object-cover shadow-sm sm:h-[92px]"
                   />
                 </span>
-                <span className="mt-3 block text-sm font-extrabold leading-tight text-slate-800">{category.name}</span>
+                <span className="mt-2 block text-sm font-bold leading-tight text-slate-950">{category.name}</span>
               </Link>
             ))}
           </div>

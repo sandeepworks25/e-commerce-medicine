@@ -61,7 +61,7 @@ const ProductCard = ({ product }) => {
         {/* Product Info */}
         <div className="flex flex-1 flex-col p-2 sm:p-2.5">
           <p className="truncate text-[11px] font-semibold uppercase tracking-wide text-teal-700 sm:text-xs">{product.brand}</p>
-          <h3 className="mt-1 line-clamp-2 min-h-8 text-xs font-semibold leading-snug text-slate-950 sm:min-h-9 sm:text-sm">
+          <h3 className="mt-1 line-clamp-2 text-xs font-semibold leading-snug text-slate-950  sm:text-sm">
             {product.name}
           </h3>
           <p className="mt-0.5 line-clamp-1 text-[11px] text-slate-500 sm:text-xs">{product.description}</p>
