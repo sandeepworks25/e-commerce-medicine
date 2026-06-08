@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { CheckCircle2, ChevronDown, LocateFixed, LockKeyhole, MapPin, Navigation, PackageCheck, PlusCircle } from 'lucide-react';
 import { useCartStore, useAuthStore, usePreferencesStore, useOrdersStore } from '../store/index.js';
@@ -17,6 +17,17 @@ const createBlankAddress = (user) => ({
   city: '',
   state: '',
   pincode: '',
+});
+
+const createBusinessAddress = (businessProfile, user) => ({
+  fullName: businessProfile?.contactPersonName || user?.name || '',
+  mobile: businessProfile?.mobileNumber || user?.mobile || '',
+  houseNumber: businessProfile?.businessName || '',
+  area: businessProfile?.businessAddress || '',
+  landmark: businessProfile?.registrationNumber ? `Registration: ${businessProfile.registrationNumber}` : '',
+  city: businessProfile?.city || '',
+  state: businessProfile?.state || '',
+  pincode: businessProfile?.pincode || '',
 });
 
 const isSameAddress = (firstAddress, secondAddress) => {
@@ -56,6 +67,8 @@ const Checkout = () => {
   const [isAddressDropdownOpen, setIsAddressDropdownOpen] = useState(false);
   const isBuyNowCheckout = searchParams.get('buyNow') === '1';
   const checkoutItems = isBuyNowCheckout ? buyNowItems : items;
+  const isB2B = !!user?.isB2B;
+  const registeredBusinessAddress = useMemo(() => createBusinessAddress(user?.businessProfile, user), [user]);
 
   const subtotal = calculateSubtotal(checkoutItems);
   const discountAmount = Math.min(appliedCoupon?.discountAmount || 0, subtotal);
@@ -77,6 +90,13 @@ const Checkout = () => {
   const addressDropdownLabel = selectedSavedAddress
     ? `${selectedSavedAddress.fullName} - ${selectedSavedAddress.city}, ${selectedSavedAddress.pincode}`
     : 'Add new address';
+
+  useEffect(() => {
+    if (isB2B) {
+      setAddress(registeredBusinessAddress);
+      setMapLocationLabel([registeredBusinessAddress.area, registeredBusinessAddress.city, registeredBusinessAddress.state].filter(Boolean).join(', ') || 'Registered business address');
+    }
+  }, [isB2B, registeredBusinessAddress]);
 
   if (checkoutItems.length === 0) {
     return (
@@ -132,6 +152,7 @@ const Checkout = () => {
   }
 
   const updateAddress = (field, value) => {
+    if (isB2B) return;
     setAddress(prev => {
       const nextAddress = { ...prev, [field]: value };
       delete nextAddress.id;
@@ -140,6 +161,7 @@ const Checkout = () => {
   };
 
   const handleSelectSavedAddress = (savedAddress) => {
+    if (isB2B) return;
     const nextAddress = {
       ...createBlankAddress(user),
       ...savedAddress,
@@ -152,6 +174,7 @@ const Checkout = () => {
   };
 
   const handleAddNewAddress = () => {
+    if (isB2B) return;
     setAddress(createBlankAddress(user));
     setMapLocationLabel('New address');
     setIsAddressDropdownOpen(false);
@@ -159,6 +182,10 @@ const Checkout = () => {
   };
 
   const handleUseCurrentLocation = () => {
+    if (isB2B) {
+      addToast('B2B checkout uses the address from your Business Registration Form.', 'info');
+      return;
+    }
     if (!navigator.geolocation) {
       addToast('Current location is not supported in this browser', 'error');
       return;
@@ -218,20 +245,26 @@ const Checkout = () => {
 
     setIsPlacingOrder(true);
     window.setTimeout(() => {
-      const orderAddress = { ...address };
+      const orderAddress = isB2B ? registeredBusinessAddress : { ...address };
       const savedAddress = savedAddresses.find(savedAddress => (
         savedAddress.id === orderAddress.id || isSameAddress(savedAddress, orderAddress)
       ));
 
-      if (!savedAddress) {
+      if (!isB2B && !savedAddress) {
         addAddress(orderAddress);
       }
-      setSelectedAddress(savedAddress || orderAddress);
+      if (!isB2B) {
+        setSelectedAddress(savedAddress || orderAddress);
+      }
+
+      const orderNumber = generateOrderNumber();
 
       createOrder({
-        orderNumber: generateOrderNumber(),
+        orderNumber,
+        accountType: isB2B ? 'B2B' : 'B2C',
+        businessProfile: isB2B ? user.businessProfile : null,
         items: checkoutItems,
-        deliveryAddress: `${address.houseNumber}, ${address.area}, ${address.city}, ${address.state} ${address.pincode}`,
+        deliveryAddress: `${orderAddress.houseNumber}, ${orderAddress.area}, ${orderAddress.city}, ${orderAddress.state} ${orderAddress.pincode}`,
         deliverySlot: 'Standard delivery',
         paymentMethod: 'Pay on delivery',
         subtotal,
@@ -248,7 +281,7 @@ const Checkout = () => {
         removeCoupon();
       }
       addToast('Order placed successfully!', 'success');
-      navigate('/track-order');
+      navigate(`/order-success/${orderNumber}`);
     }, 600);
   };
 
@@ -256,10 +289,12 @@ const Checkout = () => {
     <div className="min-h-screen bg-slate-50">
       <div className="mx-auto max-w-7xl px-4 py-9">
         <div className="mb-8">
-          <p className="text-xs font-bold uppercase tracking-[0.32em] text-rose-500">Checkout</p>
+          <p className="text-xs font-bold uppercase tracking-[0.32em] text-rose-500">{isB2B ? 'B2B Checkout' : 'Checkout'}</p>
           <h1 className="mt-3 text-4xl font-extrabold leading-tight text-slate-950">Add delivery address</h1>
           <p className="mt-4 text-base text-slate-600">
-            Add address manually or pin your current address from the map location button.
+            {isB2B
+              ? `Order will be billed to ${user.businessProfile?.businessName || 'your registered business'} with B2B pricing.`
+              : 'Add address manually or pin your current address from the map location button.'}
           </p>
         </div>
 
@@ -267,26 +302,30 @@ const Checkout = () => {
           <section className="rounded-lg border border-slate-200 bg-white p-5 sm:p-6">
             <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <h2 className="text-xl font-extrabold text-slate-950">Delivery details</h2>
-                <p className="mt-1 text-sm text-slate-500">Your order will be delivered to this address.</p>
+                <h2 className="text-xl font-extrabold text-slate-950">{isB2B ? 'Business delivery details' : 'Delivery details'}</h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  {isB2B ? 'This address comes from your Business Registration Form.' : 'Your order will be delivered to this address.'}
+                </p>
               </div>
-              <LoadingButton
-                type="button"
-                onClick={handleUseCurrentLocation}
-                isLoading={isLocating}
-                loadingText="Locating..."
-                icon={LocateFixed}
-                className="inline-flex h-12 items-center justify-center gap-2 rounded-lg border border-teal-600 px-5 text-sm font-bold text-teal-700 transition hover:bg-teal-50 disabled:opacity-60"
-              >
-                Use current address
-              </LoadingButton>
+              {!isB2B && (
+                <LoadingButton
+                  type="button"
+                  onClick={handleUseCurrentLocation}
+                  isLoading={isLocating}
+                  loadingText="Locating..."
+                  icon={LocateFixed}
+                  className="inline-flex h-12 items-center justify-center gap-2 rounded-lg border border-teal-600 px-5 text-sm font-bold text-teal-700 transition hover:bg-teal-50 disabled:opacity-60"
+                >
+                  Use current address
+                </LoadingButton>
+              )}
             </div>
 
             <div className="mb-6 rounded-lg bg-teal-50 px-4 py-3 text-sm font-bold text-teal-700">
-              {deliveryAddressMessage}
+              {isB2B ? 'Registered business address selected for this B2B order.' : deliveryAddressMessage}
             </div>
 
-            {savedAddresses.length > 0 && (
+            {!isB2B && savedAddresses.length > 0 && (
               <div className="mb-6">
                 <label className="mb-2 block text-sm font-extrabold text-slate-950">Saved address</label>
                 <div className="relative">
@@ -350,35 +389,35 @@ const Checkout = () => {
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block">
                 <span className="mb-2 block text-sm font-bold text-slate-800">Full name</span>
-                <input value={address.fullName} onChange={(event) => updateAddress('fullName', event.target.value)} placeholder="Full name" className="input-base h-12" />
+                <input value={address.fullName} onChange={(event) => updateAddress('fullName', event.target.value)} placeholder="Full name" disabled={isB2B} className="input-base h-12 disabled:bg-slate-50 disabled:text-slate-700" />
               </label>
               <label className="block">
                 <span className="mb-2 block text-sm font-bold text-slate-800">Phone number</span>
-                <input value={address.mobile} onChange={(event) => updateAddress('mobile', event.target.value.replace(/\D/g, '').slice(0, 10))} placeholder="Phone number" className="input-base h-12" />
+                <input value={address.mobile} onChange={(event) => updateAddress('mobile', event.target.value.replace(/\D/g, '').slice(0, 10))} placeholder="Phone number" disabled={isB2B} className="input-base h-12 disabled:bg-slate-50 disabled:text-slate-700" />
               </label>
               <label className="block sm:col-span-2">
                 <span className="mb-2 block text-sm font-bold text-slate-800">House / flat / building</span>
-                <input value={address.houseNumber} onChange={(event) => updateAddress('houseNumber', event.target.value)} placeholder="House / flat / building" className="input-base h-12" />
+                <input value={address.houseNumber} onChange={(event) => updateAddress('houseNumber', event.target.value)} placeholder="Business name / building" disabled={isB2B} className="input-base h-12 disabled:bg-slate-50 disabled:text-slate-700" />
               </label>
               <label className="block">
                 <span className="mb-2 block text-sm font-bold text-slate-800">Area / street</span>
-                <input value={address.area} onChange={(event) => updateAddress('area', event.target.value)} placeholder="Current map location" className="input-base h-12" />
+                <input value={address.area} onChange={(event) => updateAddress('area', event.target.value)} placeholder="Registered business address" disabled={isB2B} className="input-base h-12 disabled:bg-slate-50 disabled:text-slate-700" />
               </label>
               <label className="block">
                 <span className="mb-2 block text-sm font-bold text-slate-800">City</span>
-                <input value={address.city} onChange={(event) => updateAddress('city', event.target.value)} placeholder="Detected nearby area" className="input-base h-12" />
+                <input value={address.city} onChange={(event) => updateAddress('city', event.target.value)} placeholder="City" disabled={isB2B} className="input-base h-12 disabled:bg-slate-50 disabled:text-slate-700" />
               </label>
               <label className="block">
                 <span className="mb-2 block text-sm font-bold text-slate-800">State</span>
-                <input value={address.state} onChange={(event) => updateAddress('state', event.target.value)} placeholder="State" className="input-base h-12" />
+                <input value={address.state} onChange={(event) => updateAddress('state', event.target.value)} placeholder="State" disabled={isB2B} className="input-base h-12 disabled:bg-slate-50 disabled:text-slate-700" />
               </label>
               <label className="block">
                 <span className="mb-2 block text-sm font-bold text-slate-800">PIN code</span>
-                <input value={address.pincode} onChange={(event) => updateAddress('pincode', event.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="PIN code" className="input-base h-12" />
+                <input value={address.pincode} onChange={(event) => updateAddress('pincode', event.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="PIN code" disabled={isB2B} className="input-base h-12 disabled:bg-slate-50 disabled:text-slate-700" />
               </label>
               <label className="block sm:col-span-2">
                 <span className="mb-2 block text-sm font-bold text-slate-800">Landmark</span>
-                <input value={address.landmark} onChange={(event) => updateAddress('landmark', event.target.value)} placeholder="Pinned from device location" className="input-base h-12" />
+                <input value={address.landmark} onChange={(event) => updateAddress('landmark', event.target.value)} placeholder="Registration reference" disabled={isB2B} className="input-base h-12 disabled:bg-slate-50 disabled:text-slate-700" />
               </label>
             </div>
 
@@ -399,13 +438,27 @@ const Checkout = () => {
               </div>
             </div>
 
-            {savedAddresses.length > 0 && (
+            {isB2B && (
+              <div className="mt-4 flex flex-col gap-3 rounded-lg border border-teal-100 bg-teal-50 p-4 text-sm text-teal-900 sm:flex-row sm:items-center sm:justify-between">
+                <span className="font-bold">Need to change this address?</span>
+                <button type="button" onClick={() => navigate(`/b2b/edit/${user.businessProfile?.id}`)} className="btn-outline inline-flex h-10 items-center justify-center">
+                  Edit Business Registration
+                </button>
+              </div>
+            )}
+
+            {!isB2B && savedAddresses.length > 0 && (
               <p className="mt-4 text-xs text-slate-500">{savedAddresses.length} saved address{savedAddresses.length > 1 ? 'es' : ''} available in your account.</p>
             )}
           </section>
 
           <aside className="h-fit rounded-lg border border-slate-200 bg-white p-5 sm:p-6 lg:sticky lg:top-24">
             <h2 className="mb-6 text-xl font-extrabold text-slate-950">Order summary</h2>
+            {isB2B && (
+              <div className="mb-5 rounded-lg bg-teal-50 px-4 py-3 text-sm font-bold text-teal-800">
+                B2B buyer: {user.businessProfile?.businessName || user.name}
+              </div>
+            )}
             <div className="space-y-4">
               {checkoutItems.map(item => (
                 <div key={item.id} className="flex justify-between gap-4 text-sm">
@@ -418,7 +471,7 @@ const Checkout = () => {
             <div className="my-5 border-t border-slate-200" />
             <div className="space-y-2 text-slate-600">
               <div className="flex justify-between">
-                <span>Subtotal</span>
+                <span>{isB2B ? 'B2B subtotal' : 'Subtotal'}</span>
                 <span className="font-extrabold text-slate-950">{formatCurrency(subtotal)}</span>
               </div>
               {appliedCoupon && discountAmount > 0 && (
@@ -447,7 +500,7 @@ const Checkout = () => {
               icon={isAddressReady ? PackageCheck : CheckCircle2}
               className="mt-6 inline-flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-teal-700 font-bold text-white transition hover:bg-teal-800 disabled:bg-slate-300 disabled:text-white"
             >
-              Place order
+              {isB2B ? 'Place B2B order' : 'Place order'}
             </LoadingButton>
             {!isAddressReady && (
               <p className="mt-4 text-sm text-slate-500">Complete required address fields before placing order.</p>

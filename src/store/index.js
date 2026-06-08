@@ -117,6 +117,17 @@ export const useAuthStore = create((set, get) => ({
     localStorage.setItem('auth_user', JSON.stringify(updatedUser));
     set({ user: updatedUser });
   },
+
+  attachBusinessProfile: (businessProfile) => {
+    const updatedUser = {
+      ...get().user,
+      isB2B: true,
+      accountType: 'B2B',
+      businessProfile,
+    };
+    localStorage.setItem('auth_user', JSON.stringify(updatedUser));
+    set({ user: updatedUser, isLoggedIn: true });
+  },
 }));
 
 // Preferences Store

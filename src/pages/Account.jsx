@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore, useOrdersStore, usePrescriptionsStore, usePreferencesStore } from '../store/index.js';
-import { getInitials } from '../utils/helpers.js';
+import { formatCurrency, getInitials } from '../utils/helpers.js';
 import {
   Bell,
   ChevronRight,
@@ -37,6 +37,14 @@ const Account = () => {
   const [firstName = '', ...restName] = (user.name || 'MediCart User').split(' ');
   const lastName = restName.join(' ');
   const avatarImage = user?.image || user?.avatar;
+  const getOrderTotal = (order) => {
+    const subtotal = order.subtotal ?? (order.items || []).reduce((sum, item) => {
+      const unitPrice = Number(item.price ?? item.b2bPrice ?? item.retailPrice ?? 0);
+      return sum + unitPrice * Number(item.quantity || 1);
+    }, 0);
+
+    return order.totalAmount ?? Math.max(subtotal - (order.discount || 0), 0) + (order.delivery || 0) + (order.gst || 0);
+  };
 
   const menuGroups = [
     {
@@ -82,18 +90,24 @@ const Account = () => {
           <h2 className="mb-6 text-xl font-bold text-slate-950">My Orders</h2>
           {orders.length > 0 ? (
             <div className="space-y-4">
-              {orders.map(order => (
-                <div key={order.id} className="border border-slate-200 bg-white p-4">
+              {orders.map(order => {
+                const firstItem = order.items?.[0];
+                const orderHref = firstItem ? `/order-details/${order.id}/${firstItem.id}` : '/track-order';
+
+                return (
+                <Link key={order.id} to={orderHref} className="block border border-slate-200 bg-white p-4 transition hover:border-teal-300 hover:bg-teal-50/40">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                       <p className="font-semibold text-slate-950">{order.orderNumber}</p>
                       <p className="mt-1 text-sm text-slate-500">{order.createdAt}</p>
                       <p className="mt-2 text-sm text-slate-700">{order.items.length} item{order.items.length > 1 ? 's' : ''}</p>
+                      <p className="mt-1 text-sm font-bold text-slate-950">{formatCurrency(getOrderTotal(order))}</p>
                     </div>
                     <span className="text-sm font-semibold text-blue-600">{order.status}</span>
                   </div>
-                </div>
-              ))}
+                </Link>
+                );
+              })}
             </div>
           ) : (
             <p className="text-sm text-slate-600">No orders yet.</p>

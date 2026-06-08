@@ -1,5 +1,5 @@
 import { Suspense, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Header from './components/common/Header';
 import Footer from './components/common/Footer';
 import { ToastProvider } from './components/common/Toast';
@@ -16,6 +16,8 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Account from './pages/Account';
 import TrackOrder from './pages/TrackOrder';
+import OrderDetails from './pages/OrderDetails';
+import OrderSuccess from './pages/OrderSuccess';
 import UploadPrescription from './pages/UploadPrescription';
 import Wishlist from './pages/Wishlist';
 import Blogs from './pages/Blogs';
@@ -25,6 +27,8 @@ import About from './pages/About';
 import Contact from './pages/Contact';
 import CustomerCare from './pages/CustomerCare';
 import PolicyPage from './pages/PolicyPage';
+import B2BPage from './pages/b2b/B2BPage';
+import B2BEditPage from './pages/b2b/B2BEditPage';
 
 const ScrollToTop = () => {
   const { pathname, search } = useLocation();
@@ -62,6 +66,8 @@ function App() {
                 {/* User Pages */}
                 <Route path="/account" element={<Account />} />
                 <Route path="/track-order" element={<TrackOrder />} />
+                <Route path="/order-success/:orderNumber" element={<OrderSuccess />} />
+                <Route path="/order-details/:orderId/:itemId" element={<OrderDetails />} />
                 <Route path="/upload-prescription" element={<UploadPrescription />} />
                 <Route path="/wishlist" element={<Wishlist />} />
 
@@ -77,6 +83,16 @@ function App() {
                 <Route path="/refund-policy" element={<PolicyPage type="refund" />} />
                 <Route path="/about-us" element={<About />} />
                 <Route path="/contact-us" element={<Contact />} />
+
+                {/* B2B Website Flow */}
+                <Route path="/b2b" element={<B2BPage />} />
+                <Route path="/b2b/add" element={<Navigate to="/b2b" replace />} />
+                <Route path="/b2b/buy" element={<Navigate to="/products" replace />} />
+                <Route path="/b2b/cart" element={<Navigate to="/cart" replace />} />
+                <Route path="/b2b/checkout" element={<Navigate to="/checkout" replace />} />
+                <Route path="/b2b/orders" element={<Navigate to="/track-order" replace />} />
+                <Route path="/b2b/business/:id" element={<Navigate to="/b2b" replace />} />
+                <Route path="/b2b/edit/:id" element={<B2BEditPage />} />
 
                 {/* 404 Page */}
                 <Route

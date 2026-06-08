@@ -13,7 +13,7 @@ const Cart = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { items, addToCart, removeFromCart, updateQuantity } = useCartStore();
-  const { isLoggedIn } = useAuthStore();
+  const { user, isLoggedIn } = useAuthStore();
   const { appliedCoupon, applyCoupon, removeCoupon } = usePreferencesStore();
   const { addToast } = useToast();
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
@@ -21,6 +21,7 @@ const Cart = () => {
   const [savedForLater, setSavedForLater] = useState(() => JSON.parse(localStorage.getItem('saved_for_later')) || []);
   const [loadingAction, setLoadingAction] = useState('');
   const addedProduct = dummyProducts.find(product => product.id === Number(searchParams.get('added')));
+  const isB2B = !!user?.isB2B;
   const subtotal = calculateSubtotal(items);
   const discountAmount = appliedCoupon?.discountAmount || 0;
   const cartTotal = Math.max(subtotal - discountAmount, 0);
@@ -194,8 +195,15 @@ const Cart = () => {
         <div className="grid gap-5 lg:grid-cols-[1fr_300px]">
           <div className="bg-white px-5 py-5 sm:px-8">
             <div className="flex items-end justify-between border-b border-slate-200 pb-6">
-              <h1 className="text-3xl font-normal text-slate-950">Shopping Cart</h1>
-              <span className="hidden text-sm text-slate-700 sm:block">Price</span>
+              <div>
+                <h1 className="text-3xl font-normal text-slate-950">{isB2B ? 'B2B Cart' : 'Shopping Cart'}</h1>
+                {isB2B && (
+                  <p className="mt-1 text-sm font-semibold text-teal-700">
+                    Wholesale pricing for {user.businessProfile?.businessName || 'your business'}
+                  </p>
+                )}
+              </div>
+              <span className="hidden text-sm text-slate-700 sm:block">{isB2B ? 'B2B price' : 'Price'}</span>
             </div>
 
             {items.map((item) => (
@@ -258,7 +266,7 @@ const Cart = () => {
             ))}
 
             <div className="py-4 text-right text-xl text-slate-950">
-              Subtotal ({itemCount} items): <span className="font-bold">{formatCurrency(cartTotal)}</span>
+              {isB2B ? 'B2B subtotal' : 'Subtotal'} ({itemCount} items): <span className="font-bold">{formatCurrency(cartTotal)}</span>
             </div>
 
             {savedForLater.length > 0 && (
@@ -288,7 +296,7 @@ const Cart = () => {
           <aside className="space-y-5">
             <div className="bg-white px-5 py-7">
               <p className="text-xl font-semibold text-slate-950">
-                Subtotal ({itemCount} items): <span className="font-extrabold">{formatCurrency(cartTotal)}</span>
+                {isB2B ? 'B2B subtotal' : 'Subtotal'} ({itemCount} items): <span className="font-extrabold">{formatCurrency(cartTotal)}</span>
               </p>
               {appliedCoupon && (
                 <p className="mt-2 text-sm font-semibold text-emerald-700">
@@ -302,7 +310,7 @@ const Cart = () => {
                 loadingText="Opening..."
                 className="mt-3 inline-flex h-9 w-full items-center justify-center gap-2 rounded-full bg-yellow-400 text-sm font-semibold text-slate-950 hover:bg-yellow-300"
               >
-                Proceed to Buy
+                {isB2B ? 'Proceed to B2B Checkout' : 'Proceed to Buy'}
               </LoadingButton>
             </div>
 

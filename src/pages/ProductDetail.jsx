@@ -23,7 +23,7 @@ import {
   Truck,
   UserPlus,
 } from 'lucide-react';
-import { formatCurrency, getDiscountPercentage } from '../utils/helpers.js';
+import { formatCurrency, getDiscountPercentage, getStorefrontProduct } from '../utils/helpers.js';
 
 const ProductDetail = () => {
   const { id } = useParams();
@@ -39,11 +39,12 @@ const ProductDetail = () => {
   const [loginPromptType, setLoginPromptType] = useState('review');
   const [loadingAction, setLoadingAction] = useState('');
   const { items, addToCart } = useCartStore();
-  const { isLoggedIn } = useAuthStore();
+  const { user, isLoggedIn } = useAuthStore();
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlistStore();
   const { addToast } = useToast();
-  const inWishlist = product && isInWishlist(product.id);
-  const cartQuantity = items.find(item => item.id === product?.id)?.quantity || 0;
+  const storefrontProduct = product ? getStorefrontProduct(product, user) : null;
+  const inWishlist = storefrontProduct && isInWishlist(storefrontProduct.id);
+  const cartQuantity = items.find(item => item.id === storefrontProduct?.id)?.quantity || 0;
 
   useEffect(() => {
     setQuantity(cartQuantity > 0 ? cartQuantity : 1);
@@ -57,7 +58,7 @@ const ProductDetail = () => {
     );
   }
 
-  const discount = getDiscountPercentage(product.mrp, product.price);
+  const discount = getDiscountPercentage(storefrontProduct.mrp, storefrontProduct.price);
   const reviews = [...dummyReviews.filter(r => r.productId === product.id), ...newReviews];
   const sideEffects = Array.isArray(product.sideEffects) ? product.sideEffects : [product.sideEffects];
   const galleryImages = product.images?.length ? product.images : [product.image];
@@ -83,15 +84,15 @@ const ProductDetail = () => {
     }
 
     window.setTimeout(() => {
-      addToCart(product, quantity);
+      addToCart(storefrontProduct, quantity);
       setLoadingAction('');
-      addToast(`${product.name} added to cart!`, 'success');
+      addToast(`${storefrontProduct.name} added to cart!`, 'success');
     }, 300);
   };
 
   const handleBuyNow = () => {
     setLoadingAction('buy-now');
-    localStorage.setItem('buy_now_items', JSON.stringify([{ ...product, quantity }]));
+    localStorage.setItem('buy_now_items', JSON.stringify([{ ...storefrontProduct, quantity }]));
 
     if (!isLoggedIn) {
       setLoadingAction('');
@@ -101,7 +102,7 @@ const ProductDetail = () => {
     }
 
     window.setTimeout(() => {
-      addToast(`${product.name} is ready for checkout`, 'success');
+      addToast(`${storefrontProduct.name} is ready for checkout`, 'success');
       navigate('/checkout?buyNow=1');
     }, 400);
   };
@@ -110,10 +111,10 @@ const ProductDetail = () => {
     setLoadingAction('wishlist');
     window.setTimeout(() => {
       if (inWishlist) {
-        removeFromWishlist(product.id);
+        removeFromWishlist(storefrontProduct.id);
         addToast('Removed from wishlist', 'info');
       } else {
-        addToWishlist(product);
+        addToWishlist(storefrontProduct);
         addToast('Added to wishlist', 'success');
       }
       setLoadingAction('');
@@ -283,14 +284,16 @@ const ProductDetail = () => {
               <div className="mb-5 border-y border-slate-100 py-5">
                 <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                   <span className="text-2xl font-bold text-slate-950 sm:text-3xl">
-                    {formatCurrency(product.price)}
+                    {formatCurrency(storefrontProduct.price)}
                   </span>
                   <span className="text-lg text-slate-400 line-through">
-                    {formatCurrency(product.mrp)}
+                    {formatCurrency(storefrontProduct.mrp)}
                   </span>
                   {discount > 0 && <span className="rounded bg-rose-600 px-2 py-1 text-sm font-bold text-white">Save {discount}%</span>}
                 </div>
-                <p className="mt-2 text-sm text-slate-500">Inclusive of all taxes</p>
+                <p className="mt-2 text-sm text-slate-500">
+                  {storefrontProduct.isB2BPrice ? 'B2B wholesale price, inclusive of all taxes' : 'Inclusive of all taxes'}
+                </p>
               </div>
 
               {/* Prescription Warning */}

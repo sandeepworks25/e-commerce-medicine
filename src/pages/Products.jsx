@@ -4,8 +4,10 @@ import { dummyProducts, dummyCategories, dummyBrands } from '../data/dummy';
 import ProductCard from '../components/products/ProductCard';
 import Pagination from '../components/common/Pagination';
 import { Filter, SlidersHorizontal, X } from 'lucide-react';
+import { useAuthStore } from '../store/index.js';
 
 const Products = () => {
+  const { user } = useAuthStore();
   const [searchParams] = useSearchParams();
   const [sortBy, setSortBy] = useState('popularity');
   const [priceRange, setPriceRange] = useState([0, 5000]);
@@ -95,8 +97,15 @@ const Products = () => {
               </p>
               <h1 className="text-2xl font-bold leading-tight md:text-4xl">Shop Medicines & Healthcare Products</h1>
               <p className="mt-3 max-w-2xl text-sm md:text-base text-slate-300">
-                Browse trusted essentials, wellness products, devices, and care items with fast delivery.
+                {user?.isB2B
+                  ? `Wholesale pricing is active for ${user.businessProfile?.businessName || 'your business'}. Browse categories and add products to your B2B cart.`
+                  : 'Browse trusted essentials, wellness products, devices, and care items with fast delivery.'}
               </p>
+              {user?.isB2B && (
+                <div className="mt-4 inline-flex rounded bg-emerald-400 px-3 py-1.5 text-sm font-bold text-slate-950">
+                  B2B storefront active
+                </div>
+              )}
             </div>
             {activeCategory && (
               <img

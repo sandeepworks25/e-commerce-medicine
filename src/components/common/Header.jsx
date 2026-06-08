@@ -17,6 +17,7 @@ const Header = () => {
   const [searchFocused, setSearchFocused] = useState(false);
   const [currentLocation, setCurrentLocation] = useState(readStoredLocationLabel);
   const [loginPrompt, setLoginPrompt] = useState(null);
+  const displayedLocation = isLoggedIn ? currentLocation : 'Current location';
 
   const cartCount = items.reduce((sum, item) => sum + item.quantity, 0);
   const avatarImage = user?.image || user?.avatar;
@@ -77,12 +78,6 @@ const Header = () => {
 
     return [...categoryMatches, ...brandMatches, ...productMatches].slice(0, 8);
   }, [searchQuery]);
-
-  useEffect(() => {
-    if (!isLoggedIn) {
-      setCurrentLocation('Current location');
-    }
-  }, [isLoggedIn]);
 
   useEffect(() => {
     const handleLocationChange = (event) => {
@@ -200,7 +195,7 @@ const Header = () => {
               <MapPin size={18} className="shrink-0 text-teal-700" />
               <span className="min-w-0">
                 <span className="block text-[11px] font-bold uppercase leading-none text-slate-500">Deliver to</span>
-                <span className="mt-1 block truncate text-xs font-bold text-slate-950">{currentLocation}</span>
+                <span className="mt-1 block truncate text-xs font-bold text-slate-950">{displayedLocation}</span>
               </span>
             </button>
 
@@ -306,6 +301,7 @@ const Header = () => {
                   </div>
                 </div>
               )}
+              <Link to="/b2b" className="whitespace-nowrap hover:text-teal-700">{user?.isB2B ? 'B2B Account' : 'B2B Business'}</Link>
               <Link to="/register" className="whitespace-nowrap hover:text-teal-700">Become a Seller</Link>
               <Link to="/wishlist" className="inline-flex items-center gap-2 hover:text-teal-700">
                 <Heart size={20} />
@@ -404,6 +400,9 @@ const Header = () => {
             <Link to="/blogs" className="transition hover:text-teal-700">
               Health Blogs
             </Link>
+            <Link to="/b2b" className="transition hover:text-teal-700">
+              {user?.isB2B ? 'B2B Account' : 'B2B Business'}
+            </Link>
           </div>
         </nav>
       </header>
@@ -456,7 +455,7 @@ const Header = () => {
             <MapPin size={17} className="shrink-0 text-teal-700" />
             <span className="min-w-0 flex-1">
               <span className="block text-[10px] font-bold uppercase leading-none text-slate-500">Deliver to</span>
-              <span className="mt-1 block truncate text-xs font-bold text-slate-950">{currentLocation}</span>
+              <span className="mt-1 block truncate text-xs font-bold text-slate-950">{displayedLocation}</span>
             </span>
           </button>
 
@@ -550,6 +549,9 @@ const Header = () => {
             </Link>
             <Link to="/blogs" onClick={() => setMobileMenuOpen(false)} className="border-b border-slate-100 px-4 py-3 font-bold text-slate-800 hover:bg-slate-50">
               Health Blogs
+            </Link>
+            <Link to="/b2b" onClick={() => setMobileMenuOpen(false)} className="border-b border-slate-100 px-4 py-3 font-bold text-slate-800 hover:bg-slate-50">
+              {user?.isB2B ? 'B2B Account' : 'B2B Business'}
             </Link>
             <Link to="/customer-care" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 border-b border-slate-100 px-4 py-3 font-bold text-slate-800 hover:bg-slate-50">
               <Headphones size={18} className="text-teal-700" />
