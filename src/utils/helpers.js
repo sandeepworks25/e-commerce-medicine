@@ -100,6 +100,25 @@ export const getDiscountPercentage = (mrp, price) => {
   return Math.round(((mrp - price) / mrp) * 100);
 };
 
+// Demo wholesale pricing for approved B2B storefront users.
+export const getB2BPrice = (price) => Math.max(Math.round(price * 0.82), 1);
+
+export const getStorefrontProduct = (product, user) => {
+  if (!user?.isB2B) return product;
+
+  const retailPrice = product.retailPrice || product.price;
+  const retailMrp = product.retailMrp || product.mrp;
+
+  return {
+    ...product,
+    price: getB2BPrice(retailPrice),
+    mrp: retailMrp,
+    retailPrice,
+    retailMrp,
+    isB2BPrice: true,
+  };
+};
+
 // Check if prescription is required
 export const isPrescriptionRequired = (product) => {
   return product.prescriptionRequired === true;

@@ -1,18 +1,22 @@
 import { useNavigate } from 'react-router-dom';
-import { useWishlistStore, useCartStore } from '../store/index.js';
+import { useAuthStore, useWishlistStore, useCartStore } from '../store/index.js';
 import { useToast } from '../components/common/Toast';
 import EmptyState from '../components/common/EmptyState';
 import ProductCard from '../components/products/ProductCard';
+
+import { getStorefrontProduct } from '../utils/helpers.js';
 
 const Wishlist = () => {
   const navigate = useNavigate();
   const { items, removeFromWishlist } = useWishlistStore();
   const { addToCart } = useCartStore();
+  const { user } = useAuthStore();
   const { addToast } = useToast();
 
   const handleMoveToCart = (product) => {
-    addToCart(product, 1);
-    removeFromWishlist(product.id);
+    const storefrontProduct = getStorefrontProduct(product, user);
+    addToCart(storefrontProduct, 1);
+    removeFromWishlist(storefrontProduct.id);
     addToast('Moved to cart', 'success');
   };
 

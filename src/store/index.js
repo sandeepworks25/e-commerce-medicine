@@ -1,5 +1,5 @@
-import { create } from 'zustand';
-import { clearStoredLocationLabel } from '../utils/location.js';
+import { create } from "zustand";
+import { clearStoredLocationLabel } from "../utils/location.js";
 import {
   addressesApi,
   authApi,
@@ -7,28 +7,28 @@ import {
   ordersApi,
   prescriptionsApi,
   wishlistApi,
-} from '../api/index.js';
+} from "../api/index.js";
 
 const isAuthed = () => authApi.isAuthenticated();
 const pid = (p) => p._id || p.id;
 
 // Cart Store — backend-backed when logged in, localStorage for guests.
 export const useCartStore = create((set, get) => ({
-  items: JSON.parse(localStorage.getItem('cart')) || [],
+  items: JSON.parse(localStorage.getItem("cart")) || [],
 
   // Load cart from backend (after login) or localStorage.
   hydrate: async () => {
     if (!isAuthed()) {
-      set({ items: JSON.parse(localStorage.getItem('cart')) || [] });
+      set({ items: JSON.parse(localStorage.getItem("cart")) || [] });
       return;
     }
     try {
       // Push any guest items to the server first, then load merged cart.
-      const guest = JSON.parse(localStorage.getItem('cart')) || [];
+      const guest = JSON.parse(localStorage.getItem("cart")) || [];
       for (const it of guest) {
         await cartApi.add(pid(it), it.quantity || 1);
       }
-      localStorage.removeItem('cart');
+      localStorage.removeItem("cart");
       set({ items: await cartApi.get() });
     } catch {
       /* keep current */
@@ -48,10 +48,12 @@ export const useCartStore = create((set, get) => ({
       const existing = state.items.find((item) => pid(item) === pid(product));
       const newItems = existing
         ? state.items.map((item) =>
-            pid(item) === pid(product) ? { ...item, ...product, quantity: item.quantity + quantity } : item,
+            pid(item) === pid(product)
+              ? { ...item, ...product, quantity: item.quantity + quantity }
+              : item,
           )
         : [...state.items, { ...product, quantity }];
-      localStorage.setItem('cart', JSON.stringify(newItems));
+      localStorage.setItem("cart", JSON.stringify(newItems));
       return { items: newItems };
     });
   },
@@ -67,7 +69,7 @@ export const useCartStore = create((set, get) => ({
     }
     set((state) => {
       const newItems = state.items.filter((item) => pid(item) !== productId);
-      localStorage.setItem('cart', JSON.stringify(newItems));
+      localStorage.setItem("cart", JSON.stringify(newItems));
       return { items: newItems };
     });
   },
@@ -86,7 +88,7 @@ export const useCartStore = create((set, get) => ({
       const newItems = state.items.map((item) =>
         pid(item) === productId ? { ...item, quantity } : item,
       );
-      localStorage.setItem('cart', JSON.stringify(newItems));
+      localStorage.setItem("cart", JSON.stringify(newItems));
       return { items: newItems };
     });
   },
@@ -99,29 +101,30 @@ export const useCartStore = create((set, get) => ({
         /* ignore */
       }
     }
-    localStorage.removeItem('cart');
+    localStorage.removeItem("cart");
     set({ items: [] });
   },
 
-  getCartTotal: () => get().items.reduce((sum, item) => sum + item.price * item.quantity, 0),
+  getCartTotal: () =>
+    get().items.reduce((sum, item) => sum + item.price * item.quantity, 0),
   getCartCount: () => get().items.reduce((sum, item) => sum + item.quantity, 0),
 }));
 
 // Wishlist Store
 export const useWishlistStore = create((set, get) => ({
-  items: JSON.parse(localStorage.getItem('wishlist')) || [],
+  items: JSON.parse(localStorage.getItem("wishlist")) || [],
 
   hydrate: async () => {
     if (!isAuthed()) {
-      set({ items: JSON.parse(localStorage.getItem('wishlist')) || [] });
+      set({ items: JSON.parse(localStorage.getItem("wishlist")) || [] });
       return;
     }
     try {
-      const guest = JSON.parse(localStorage.getItem('wishlist')) || [];
+      const guest = JSON.parse(localStorage.getItem("wishlist")) || [];
       for (const it of guest) {
         await wishlistApi.add(pid(it));
       }
-      localStorage.removeItem('wishlist');
+      localStorage.removeItem("wishlist");
       set({ items: await wishlistApi.get() });
     } catch {
       /* keep current */
@@ -140,7 +143,7 @@ export const useWishlistStore = create((set, get) => ({
     set((state) => {
       if (state.items.find((item) => pid(item) === pid(product))) return state;
       const newItems = [...state.items, product];
-      localStorage.setItem('wishlist', JSON.stringify(newItems));
+      localStorage.setItem("wishlist", JSON.stringify(newItems));
       return { items: newItems };
     });
   },
@@ -156,28 +159,29 @@ export const useWishlistStore = create((set, get) => ({
     }
     set((state) => {
       const newItems = state.items.filter((item) => pid(item) !== productId);
-      localStorage.setItem('wishlist', JSON.stringify(newItems));
+      localStorage.setItem("wishlist", JSON.stringify(newItems));
       return { items: newItems };
     });
   },
 
-  isInWishlist: (productId) => get().items.some((item) => pid(item) === productId),
+  isInWishlist: (productId) =>
+    get().items.some((item) => pid(item) === productId),
 
   clearWishlist: () => {
-    localStorage.removeItem('wishlist');
+    localStorage.removeItem("wishlist");
     set({ items: [] });
   },
 }));
 
 // Auth Store — real JWT.
 export const useAuthStore = create((set) => ({
-  user: JSON.parse(localStorage.getItem('auth_user')) || null,
+  user: JSON.parse(localStorage.getItem("auth_user")) || null,
   isLoggedIn: authApi.isAuthenticated(),
   loading: false,
 
   login: async (login, password) => {
     const data = await authApi.login(login, password);
-    localStorage.setItem('auth_user', JSON.stringify(data.user));
+    localStorage.setItem("auth_user", JSON.stringify(data.user));
     set({ user: data.user, isLoggedIn: true });
     await useCartStore.getState().hydrate();
     await useWishlistStore.getState().hydrate();
@@ -186,7 +190,7 @@ export const useAuthStore = create((set) => ({
 
   register: async (payload) => {
     const data = await authApi.register(payload);
-    localStorage.setItem('auth_user', JSON.stringify(data.user));
+    localStorage.setItem("auth_user", JSON.stringify(data.user));
     set({ user: data.user, isLoggedIn: true });
     await useCartStore.getState().hydrate();
     await useWishlistStore.getState().hydrate();
@@ -198,21 +202,21 @@ export const useAuthStore = create((set) => ({
     if (!authApi.isAuthenticated()) return;
     try {
       const user = await authApi.me();
-      localStorage.setItem('auth_user', JSON.stringify(user));
+      localStorage.setItem("auth_user", JSON.stringify(user));
       set({ user, isLoggedIn: true });
       await useCartStore.getState().hydrate();
       await useWishlistStore.getState().hydrate();
     } catch {
       authApi.logout();
-      localStorage.removeItem('auth_user');
+      localStorage.removeItem("auth_user");
       set({ user: null, isLoggedIn: false });
     }
   },
 
   logout: () => {
     authApi.logout();
-    localStorage.removeItem('auth_user');
-    localStorage.removeItem('selected_address');
+    localStorage.removeItem("auth_user");
+    localStorage.removeItem("selected_address");
     clearStoredLocationLabel();
     set({ user: null, isLoggedIn: false });
     useCartStore.setState({ items: [] });
@@ -222,16 +226,16 @@ export const useAuthStore = create((set) => ({
   updateProfile: (userData) =>
     set((state) => {
       const updatedUser = { ...state.user, ...userData };
-      localStorage.setItem('auth_user', JSON.stringify(updatedUser));
+      localStorage.setItem("auth_user", JSON.stringify(updatedUser));
       return { user: updatedUser };
     }),
 }));
 
 // Preferences Store — addresses backend-backed when logged in.
 export const usePreferencesStore = create((set, get) => ({
-  savedAddresses: JSON.parse(localStorage.getItem('saved_addresses')) || [],
-  selectedAddress: JSON.parse(localStorage.getItem('selected_address')) || null,
-  appliedCoupon: JSON.parse(localStorage.getItem('applied_coupon')) || null,
+  savedAddresses: JSON.parse(localStorage.getItem("saved_addresses")) || [],
+  selectedAddress: JSON.parse(localStorage.getItem("selected_address")) || null,
+  appliedCoupon: JSON.parse(localStorage.getItem("applied_coupon")) || null,
 
   hydrateAddresses: async () => {
     if (!isAuthed()) return;
@@ -254,8 +258,11 @@ export const usePreferencesStore = create((set, get) => ({
       }
     }
     set((state) => {
-      const newAddresses = [...state.savedAddresses, { ...address, id: Date.now() }];
-      localStorage.setItem('saved_addresses', JSON.stringify(newAddresses));
+      const newAddresses = [
+        ...state.savedAddresses,
+        { ...address, id: Date.now() },
+      ];
+      localStorage.setItem("saved_addresses", JSON.stringify(newAddresses));
       return { savedAddresses: newAddresses };
     });
   },
@@ -274,7 +281,7 @@ export const usePreferencesStore = create((set, get) => ({
       const newAddresses = state.savedAddresses.map((addr) =>
         addr.id === id ? { ...addr, ...address } : addr,
       );
-      localStorage.setItem('saved_addresses', JSON.stringify(newAddresses));
+      localStorage.setItem("saved_addresses", JSON.stringify(newAddresses));
       return { savedAddresses: newAddresses };
     });
   },
@@ -290,24 +297,26 @@ export const usePreferencesStore = create((set, get) => ({
       }
     }
     set((state) => {
-      const newAddresses = state.savedAddresses.filter((addr) => addr.id !== id);
-      localStorage.setItem('saved_addresses', JSON.stringify(newAddresses));
+      const newAddresses = state.savedAddresses.filter(
+        (addr) => addr.id !== id,
+      );
+      localStorage.setItem("saved_addresses", JSON.stringify(newAddresses));
       return { savedAddresses: newAddresses };
     });
   },
 
   setSelectedAddress: (address) => {
-    localStorage.setItem('selected_address', JSON.stringify(address));
+    localStorage.setItem("selected_address", JSON.stringify(address));
     set({ selectedAddress: address });
   },
 
   applyCoupon: (coupon) => {
-    localStorage.setItem('applied_coupon', JSON.stringify(coupon));
+    localStorage.setItem("applied_coupon", JSON.stringify(coupon));
     set({ appliedCoupon: coupon });
   },
 
   removeCoupon: () => {
-    localStorage.removeItem('applied_coupon');
+    localStorage.removeItem("applied_coupon");
     set({ appliedCoupon: null });
   },
 
@@ -334,7 +343,8 @@ export const useOrdersStore = create((set, get) => ({
     return order;
   },
 
-  getOrderById: (id) => get().orders.find((order) => (order._id || order.id) === id),
+  getOrderById: (id) =>
+    get().orders.find((order) => (order._id || order.id) === id),
 }));
 
 // Prescriptions Store — backend-backed.
