@@ -4,6 +4,7 @@ import { useAuthStore } from '../store/index.js';
 import { useToast } from '../components/common/Toast';
 import LoadingButton from '../components/common/LoadingButton.jsx';
 import { validateEmail, validateMobile } from '../utils/helpers.js';
+import { apiErrorMessage } from '../api/client.js';
 import { siteBanners } from '../data/dummy.js';
 import { LockKeyhole, Mail, Phone, Pill, ShieldCheck, User } from 'lucide-react';
 
@@ -17,7 +18,7 @@ const Register = () => {
   });
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { login } = useAuthStore();
+  const { register } = useAuthStore();
   const { addToast } = useToast();
   const redirectTo = searchParams.get('redirect') || '/account';
   const [isRegistering, setIsRegistering] = useState(false);
@@ -30,7 +31,7 @@ const Register = () => {
     }));
   };
 
-  const handleRegister = () => {
+  const handleRegister = async () => {
     // Validation
     if (formData.name.length < 2) {
       addToast('Name must be at least 2 characters', 'error');
@@ -44,8 +45,8 @@ const Register = () => {
       addToast('Invalid mobile number', 'error');
       return;
     }
-    if (formData.password.length < 6) {
-      addToast('Password must be at least 6 characters', 'error');
+    if (formData.password.length < 8) {
+      addToast('Password must be at least 8 characters', 'error');
       return;
     }
     if (formData.password !== formData.confirmPassword) {
@@ -53,19 +54,21 @@ const Register = () => {
       return;
     }
 
-    const user = {
-      id: Date.now(),
-      name: formData.name,
-      email: formData.email,
-      mobile: formData.mobile,
-    };
-
     setIsRegistering(true);
-    window.setTimeout(() => {
-      login(user);
+    try {
+      await register({
+        fullName: formData.name,
+        email: formData.email,
+        phone: formData.mobile,
+        password: formData.password,
+      });
       addToast('Registration successful!', 'success');
       navigate(redirectTo);
-    }, 500);
+    } catch (err) {
+      addToast(apiErrorMessage(err, 'Registration failed'), 'error');
+    } finally {
+      setIsRegistering(false);
+    }
   };
 
   return (
@@ -159,14 +162,14 @@ const Register = () => {
             <input
               type="password"
               name="password"
-              placeholder="Minimum 6 characters"
+              placeholder="Minimum 8 characters"
               value={formData.password}
               onChange={handleChange}
                 className="input-base pl-11"
             />
             </div>
-            {formData.password && formData.password.length < 6 && (
-              <p className="text-xs text-danger-600 mt-1">Minimum 6 characters required</p>
+            {formData.password && formData.password.length < 8 && (
+              <p className="text-xs text-danger-600 mt-1">Minimum 8 characters required</p>
             )}
           </div>
 

@@ -7,6 +7,7 @@ import LoadingButton from '../components/common/LoadingButton.jsx';
 import Modal from '../components/common/Modal.jsx';
 import { validateMobile, validatePincode, generateOrderNumber, calculateSubtotal, calculateDeliveryCharges, formatCurrency } from '../utils/helpers.js';
 import { buildAreaLabel, readStoredLocationLabel, reverseGeocode, saveLocationLabel } from '../utils/location.js';
+import { apiErrorMessage } from '../api/client.js';
 
 const createBlankAddress = (user) => ({
   fullName: user?.name || '',
@@ -210,14 +211,14 @@ const Checkout = () => {
     );
   };
 
-  const handlePlaceOrder = () => {
+  const handlePlaceOrder = async () => {
     if (!isAddressReady) {
       addToast('Complete required address fields before placing order.', 'error');
       return;
     }
 
     setIsPlacingOrder(true);
-    window.setTimeout(() => {
+    try {
       const orderAddress = { ...address };
       const savedAddress = savedAddresses.find(savedAddress => (
         savedAddress.id === orderAddress.id || isSameAddress(savedAddress, orderAddress)
@@ -228,28 +229,44 @@ const Checkout = () => {
       }
       setSelectedAddress(savedAddress || orderAddress);
 
-      createOrder({
-        orderNumber: generateOrderNumber(),
-        items: checkoutItems,
-        deliveryAddress: `${address.houseNumber}, ${address.area}, ${address.city}, ${address.state} ${address.pincode}`,
-        deliverySlot: 'Standard delivery',
-        paymentMethod: 'Pay on delivery',
+      await createOrder({
+        items: checkoutItems.map((it) => ({
+          product: it._id || it.id,
+          name: it.name,
+          price: it.price,
+          quantity: it.quantity,
+          image: it.image,
+        })),
+        address: {
+          fullName: address.fullName,
+          phone: address.phone,
+          line1: address.houseNumber,
+          line2: address.area,
+          city: address.city,
+          state: address.state,
+          pincode: address.pincode,
+        },
         subtotal,
         discount: discountAmount,
-        couponCode: appliedCoupon?.code || null,
-        gst: 0,
-        delivery,
-        totalAmount: total,
+        shipping: delivery,
+        total,
+        couponCode: appliedCoupon?.code || undefined,
+        paymentMethod: 'COD',
       });
+
       if (isBuyNowCheckout) {
         localStorage.removeItem('buy_now_items');
       } else {
-        clearCart();
+        await clearCart();
         removeCoupon();
       }
       addToast('Order placed successfully!', 'success');
       navigate('/track-order');
-    }, 600);
+    } catch (err) {
+      addToast(apiErrorMessage(err, 'Could not place order'), 'error');
+    } finally {
+      setIsPlacingOrder(false);
+    }
   };
 
   return (

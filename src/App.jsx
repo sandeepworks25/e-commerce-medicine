@@ -4,6 +4,7 @@ import Header from './components/common/Header';
 import Footer from './components/common/Footer';
 import { ToastProvider } from './components/common/Toast';
 import { LoadingSpinner } from './components/common/Skeleton';
+import { useAuthStore } from './store/index.js';
 import './index.css';
 
 // Import pages
@@ -37,6 +38,13 @@ const ScrollToTop = () => {
 };
 
 function App() {
+  const fetchMe = useAuthStore((s) => s.fetchMe);
+
+  // Validate stored token + hydrate cart/wishlist on load.
+  useEffect(() => {
+    fetchMe();
+  }, [fetchMe]);
+
   return (
     <BrowserRouter>
       <ToastProvider>

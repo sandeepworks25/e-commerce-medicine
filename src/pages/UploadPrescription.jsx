@@ -1,17 +1,22 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { usePrescriptionsStore, useAuthStore } from '../store/index.js';
 import { useToast } from '../components/common/Toast';
 import LoadingButton from '../components/common/LoadingButton.jsx';
 import { isValidFileType, isValidFileSize } from '../utils/helpers.js';
+import { apiErrorMessage } from '../api/client.js';
 import { Upload, X } from 'lucide-react';
 
 const UploadPrescription = () => {
   const [files, setFiles] = useState([]);
   const [dragActive, setDragActive] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const { uploadPrescription, prescriptions } = usePrescriptionsStore();
+  const { uploadPrescription, prescriptions, fetchPrescriptions } = usePrescriptionsStore();
   const { isLoggedIn } = useAuthStore();
   const { addToast } = useToast();
+
+  useEffect(() => {
+    if (isLoggedIn) fetchPrescriptions();
+  }, [isLoggedIn, fetchPrescriptions]);
 
   if (!isLoggedIn) {
     return (
@@ -80,25 +85,24 @@ const UploadPrescription = () => {
     setFiles(prev => prev.filter(f => f.id !== fileId));
   };
 
-  const handleUpload = () => {
+  const handleUpload = async () => {
     if (files.length === 0) {
       addToast('Please select at least one file', 'error');
       return;
     }
 
     setIsUploading(true);
-    window.setTimeout(() => {
-      files.forEach(fileData => {
-        uploadPrescription({
-          fileName: fileData.name,
-          fileType: fileData.type,
-        });
-      });
-
+    try {
+      for (const fileData of files) {
+        await uploadPrescription({ file: fileData.file });
+      }
       setFiles([]);
-      setIsUploading(false);
       addToast('Prescription(s) uploaded successfully!', 'success');
-    }, 700);
+    } catch (err) {
+      addToast(apiErrorMessage(err, 'Upload failed'), 'error');
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const formatFileSize = (bytes) => {

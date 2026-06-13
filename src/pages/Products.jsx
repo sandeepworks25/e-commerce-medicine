@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { dummyProducts, dummyCategories, dummyBrands } from '../data/dummy';
+import { catalogApi } from '../api/index.js';
 import ProductCard from '../components/products/ProductCard';
 import Pagination from '../components/common/Pagination';
 import { Filter, SlidersHorizontal, X } from 'lucide-react';
@@ -13,6 +14,17 @@ const Products = () => {
   const [selectedRating, setSelectedRating] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
+  const [products, setProducts] = useState(dummyProducts);
+
+  // Load live products; keep dummy data as fallback when backend is empty/down.
+  useEffect(() => {
+    catalogApi
+      .products()
+      .then((list) => {
+        if (list.length) setProducts(list);
+      })
+      .catch(() => {});
+  }, []);
 
   const categoryFilter = searchParams.get('category');
   const searchFilter = searchParams.get('search') || '';
@@ -28,7 +40,7 @@ const Products = () => {
   };
 
   const filteredProducts = useMemo(() => {
-    let results = [...dummyProducts];
+    let results = [...products];
 
     // Filter by category
     if (categoryFilter) {
@@ -75,7 +87,7 @@ const Products = () => {
     }
 
     return results;
-  }, [categoryFilter, searchFilter, priceRange, selectedBrands, selectedRating, sortBy]);
+  }, [products, categoryFilter, searchFilter, priceRange, selectedBrands, selectedRating, sortBy]);
 
   const itemsPerPage = 12;
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
@@ -276,7 +288,7 @@ const Products = () => {
                       }}
                       className="accent-teal-700"
                     />
-                    <span className="text-sm">{rating} ★ & up ({dummyProducts.filter(p => parseFloat(p.rating) >= rating).length})</span>
+                    <span className="text-sm">{rating} ★ & up ({products.filter(p => parseFloat(p.rating) >= rating).length})</span>
                   </label>
                 ))}
               </div>

@@ -4,6 +4,7 @@ import { useAuthStore } from '../store/index.js';
 import { useToast } from '../components/common/Toast';
 import LoadingButton from '../components/common/LoadingButton.jsx';
 import { validateEmail, validateMobile } from '../utils/helpers.js';
+import { apiErrorMessage } from '../api/client.js';
 import { siteBanners } from '../data/dummy.js';
 import { LockKeyhole, Mail, Phone, Pill, ShieldCheck } from 'lucide-react';
 
@@ -34,26 +35,25 @@ const Login = () => {
     }, 500);
   };
 
-  const handleVerifyOtp = () => {
+  const handleVerifyOtp = async () => {
     if (otp.length !== 4) {
       addToast('Invalid OTP', 'error');
       return;
     }
     setLoadingAction('verify-otp');
-    window.setTimeout(() => {
-      const user = {
-        id: Date.now(),
-        name: `MediCare User ${mobile.slice(-4)}`,
-        mobile,
-        email: 'user@example.com',
-      };
-      login(user);
+    try {
+      // No OTP backend yet — treat the entered code as the account password.
+      await login(mobile, otp);
       addToast('Login successful!', 'success');
       navigate(redirectTo);
-    }, 500);
+    } catch (err) {
+      addToast(apiErrorMessage(err, 'Login failed'), 'error');
+    } finally {
+      setLoadingAction('');
+    }
   };
 
-  const handleEmailLogin = () => {
+  const handleEmailLogin = async () => {
     if (!validateEmail(email)) {
       addToast('Invalid email address', 'error');
       return;
@@ -63,17 +63,15 @@ const Login = () => {
       return;
     }
     setLoadingAction('email-login');
-    window.setTimeout(() => {
-      const user = {
-        id: Date.now(),
-        name: 'Rajesh Kumar',
-        mobile: '9876543210',
-        email: email,
-      };
-      login(user);
+    try {
+      await login(email, password);
       addToast('Login successful!', 'success');
       navigate(redirectTo);
-    }, 500);
+    } catch (err) {
+      addToast(apiErrorMessage(err, 'Login failed'), 'error');
+    } finally {
+      setLoadingAction('');
+    }
   };
 
   return (

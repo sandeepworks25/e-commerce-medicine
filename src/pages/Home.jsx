@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { dummyProducts, dummyCategories, dummyBlogs, dummyFAQs, fetchHomeBanners, siteBanners } from '../data/dummy';
+import { catalogApi } from '../api/index.js';
 import ProductCard from '../components/products/ProductCard';
 import BlogCard from '../components/home/BlogCard';
 import Modal from '../components/common/Modal.jsx';
@@ -21,8 +22,18 @@ import {
 const Home = () => {
   const navigate = useNavigate();
   const { isLoggedIn } = useAuthStore();
-  const topProducts = dummyProducts.slice(0, 8);
+  const [products, setProducts] = useState(dummyProducts);
+  const topProducts = products.slice(0, 8);
   const featuredBlogs = dummyBlogs.slice(0, 3);
+
+  useEffect(() => {
+    catalogApi
+      .products()
+      .then((list) => {
+        if (list.length) setProducts(list);
+      })
+      .catch(() => {});
+  }, []);
 
   const [activeFAQ, setActiveFAQ] = useState(0);
   const [bannerSlides, setBannerSlides] = useState([]);

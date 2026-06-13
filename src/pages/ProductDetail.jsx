@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { dummyProducts, dummyReviews } from '../data/dummy';
+import { catalogApi } from '../api/index.js';
 import ProductCard from '../components/products/ProductCard';
 import Modal from '../components/common/Modal.jsx';
 import LoadingButton from '../components/common/LoadingButton.jsx';
@@ -29,8 +30,23 @@ const ProductDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [quantity, setQuantity] = useState(1);
-  const product = dummyProducts.find(p => p.id === parseInt(id));
+  const [allProducts, setAllProducts] = useState(dummyProducts);
+  const product = allProducts.find((p) => String(p.id) === String(id));
   const [activeImage, setActiveImage] = useState(product?.image);
+
+  // Load live catalog; fall back to dummy data when backend is empty/down.
+  useEffect(() => {
+    catalogApi
+      .products()
+      .then((list) => {
+        if (list.length) setAllProducts(list);
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (product?.image) setActiveImage(product.image);
+  }, [product?.id]);
   const [activeTab, setActiveTab] = useState('description');
   const [newReviews, setNewReviews] = useState([]);
   const [reviewForm, setReviewForm] = useState({ rating: 5, title: '', content: '' });
@@ -62,7 +78,7 @@ const ProductDetail = () => {
   const sideEffects = Array.isArray(product.sideEffects) ? product.sideEffects : [product.sideEffects];
   const galleryImages = product.images?.length ? product.images : [product.image];
   const selectedImage = activeImage || galleryImages[0];
-  const relatedProducts = dummyProducts
+  const relatedProducts = allProducts
     .filter(item => item.category === product.category && item.id !== product.id)
     .slice(0, 4);
   const isBestSeller = Number(product.rating) >= 4.4 || Number(product.reviews) > 500;

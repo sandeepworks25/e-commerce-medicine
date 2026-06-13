@@ -1,11 +1,16 @@
+import { useEffect } from 'react';
 import { useOrdersStore } from '../store/index.js';
 import { dummyProducts } from '../data/dummy.js';
 import { Check, Clock, MapPin, PackageCheck, ShoppingBag, Truck } from 'lucide-react';
 import { formatCurrency } from '../utils/helpers.js';
 
 const TrackOrder = () => {
-  const { orders } = useOrdersStore();
+  const { orders, fetchOrders } = useOrdersStore();
   const latestOrder = orders[0];
+
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
 
   const statuses = [
     { label: 'Order Placed', desc: 'We received your order', icon: ShoppingBag, completed: true },

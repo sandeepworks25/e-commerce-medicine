@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore, useOrdersStore, usePrescriptionsStore, usePreferencesStore } from '../store/index.js';
 import { getInitials } from '../utils/helpers.js';
@@ -19,10 +19,16 @@ import {
 const Account = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
-  const { orders } = useOrdersStore();
-  const { prescriptions } = usePrescriptionsStore();
-  const { savedAddresses } = usePreferencesStore();
+  const { orders, fetchOrders } = useOrdersStore();
+  const { prescriptions, fetchPrescriptions } = usePrescriptionsStore();
+  const { savedAddresses, hydrateAddresses } = usePreferencesStore();
   const [activeTab, setActiveTab] = useState('profile');
+
+  useEffect(() => {
+    fetchOrders();
+    fetchPrescriptions();
+    hydrateAddresses();
+  }, [fetchOrders, fetchPrescriptions, hydrateAddresses]);
 
   if (!user) {
     navigate('/login');
