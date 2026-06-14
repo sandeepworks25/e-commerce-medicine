@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { dummyProducts, dummyCategories, dummyBlogs, dummyFAQs, fetchHomeBanners, siteBanners } from '../data/dummy';
-import { catalogApi } from '../api/index.js';
+import { catalogApi, assetUrl } from '../api/index.js';
 import ProductCard from '../components/products/ProductCard';
 import BlogCard from '../components/home/BlogCard';
 import Modal from '../components/common/Modal.jsx';
@@ -23,6 +23,7 @@ const Home = () => {
   const navigate = useNavigate();
   const { isLoggedIn } = useAuthStore();
   const [products, setProducts] = useState(dummyProducts);
+  const [categories, setCategories] = useState(dummyCategories);
   const topProducts = products.slice(0, 8);
   const featuredBlogs = dummyBlogs.slice(0, 3);
 
@@ -31,6 +32,12 @@ const Home = () => {
       .products()
       .then((list) => {
         if (list.length) setProducts(list);
+      })
+      .catch(() => {});
+    catalogApi
+      .categories()
+      .then((list) => {
+        if (list.length) setCategories(list);
       })
       .catch(() => {});
   }, []);
@@ -212,15 +219,15 @@ const Home = () => {
             </Link>
           </div>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-8">
-            {dummyCategories.map(category => (
+            {categories.map(category => (
               <Link
-                key={category.id}
+                key={category._id || category.id}
                 to={`/products?category=${category.slug}`}
                 className="group text-center"
               >
                 <span className="block rounded-lg bg-indigo-50 p-2 transition group-hover:-translate-y-0.5 group-hover:bg-teal-50">
                   <img
-                    src={category.image}
+                    src={category._id ? assetUrl(category.image) : category.image}
                     alt={category.name}
                     className="h-[82px] w-full rounded-md object-cover shadow-sm sm:h-[92px]"
                   />

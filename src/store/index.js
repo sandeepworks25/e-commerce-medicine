@@ -12,6 +12,10 @@ import {
 const isAuthed = () => authApi.isAuthenticated();
 const pid = (p) => p._id || p.id;
 
+// Backend user uses fullName/phone; expose name/mobile aliases for components.
+const withAliases = (u) =>
+  u ? { ...u, name: u.fullName || u.name || '', mobile: u.phone || u.mobile || '' } : u;
+
 // Cart Store — backend-backed when logged in, localStorage for guests.
 export const useCartStore = create((set, get) => ({
   items: JSON.parse(localStorage.getItem("cart")) || [],
@@ -181,27 +185,29 @@ export const useAuthStore = create((set) => ({
 
   login: async (login, password) => {
     const data = await authApi.login(login, password);
-    localStorage.setItem("auth_user", JSON.stringify(data.user));
-    set({ user: data.user, isLoggedIn: true });
+    const user = withAliases(data.user);
+    localStorage.setItem("auth_user", JSON.stringify(user));
+    set({ user, isLoggedIn: true });
     await useCartStore.getState().hydrate();
     await useWishlistStore.getState().hydrate();
-    return data.user;
+    return user;
   },
 
   register: async (payload) => {
     const data = await authApi.register(payload);
-    localStorage.setItem("auth_user", JSON.stringify(data.user));
-    set({ user: data.user, isLoggedIn: true });
+    const user = withAliases(data.user);
+    localStorage.setItem("auth_user", JSON.stringify(user));
+    set({ user, isLoggedIn: true });
     await useCartStore.getState().hydrate();
     await useWishlistStore.getState().hydrate();
-    return data.user;
+    return user;
   },
 
   // Re-validate token + refresh user on app load.
   fetchMe: async () => {
     if (!authApi.isAuthenticated()) return;
     try {
-      const user = await authApi.me();
+      const user = withAliases(await authApi.me());
       localStorage.setItem("auth_user", JSON.stringify(user));
       set({ user, isLoggedIn: true });
       await useCartStore.getState().hydrate();

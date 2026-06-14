@@ -40,7 +40,10 @@ const Account = () => {
     navigate('/login');
   };
 
-  const [firstName = '', ...restName] = (user.name || 'MediCart User').split(' ');
+  // Backend user uses fullName/phone; keep old name/mobile as fallback.
+  const displayName = user.fullName || user.name || 'MediCart User';
+  const displayPhone = user.phone || user.mobile || '';
+  const [firstName = '', ...restName] = displayName.split(' ');
   const lastName = restName.join(' ');
   const avatarImage = user?.image || user?.avatar;
   const getOrderTotal = (order) => {
@@ -208,7 +211,7 @@ const Account = () => {
             <h2 className="text-xl font-bold text-slate-950">Mobile Number</h2>
             <button className="text-sm font-semibold text-blue-600">Edit</button>
           </div>
-          <input value={user.mobile ? `+91${user.mobile}` : ''} readOnly className="h-12 w-full max-w-xs border border-slate-300 bg-slate-50 px-4 text-sm text-slate-500 outline-none" />
+          <input value={displayPhone ? `+91${displayPhone}` : ''} readOnly className="h-12 w-full max-w-xs border border-slate-300 bg-slate-50 px-4 text-sm text-slate-500 outline-none" />
         </section>
 
         <section className="mt-14 max-w-4xl">
@@ -247,15 +250,15 @@ const Account = () => {
         <aside className="space-y-4">
           <div className="flex items-center gap-4 bg-white p-4 shadow-sm">
             {avatarImage ? (
-              <img src={avatarImage} alt={user.name} className="h-12 w-12 rounded-full object-cover" />
+              <img src={avatarImage} alt={displayName} className="h-12 w-12 rounded-full object-cover" />
             ) : (
               <span className="grid h-12 w-12 place-items-center rounded-full bg-yellow-300 text-sm font-bold text-blue-600">
-                {getInitials(user.name)}
+                {getInitials(displayName)}
               </span>
             )}
             <div className="min-w-0">
               <p className="text-xs text-slate-900">Hello,</p>
-              <p className="truncate font-bold text-slate-950">{user.name}</p>
+              <p className="truncate font-bold text-slate-950">{displayName}</p>
             </div>
           </div>
 

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ChevronDown, Headphones, Heart, LockKeyhole, LogOut, MapPin, Menu, Pill, Search, ShoppingCart, User, UserPlus, X } from 'lucide-react';
 import { useCartStore, useAuthStore } from '../../store/index.js';
 import { dummyBrands, dummyCategories, dummyProducts } from '../../data/dummy.js';
+import { catalogApi } from '../../api/index.js';
 import { getInitials } from '../../utils/helpers.js';
 import { buildAreaLabel, LOCATION_CHANGE_EVENT, readStoredLocationLabel, reverseGeocode, saveLocationLabel } from '../../utils/location.js';
 import Modal from './Modal.jsx';
@@ -21,12 +22,30 @@ const Header = () => {
 
   const cartCount = items.reduce((sum, item) => sum + item.quantity, 0);
   const avatarImage = user?.image || user?.avatar;
-  const medicineCategories = dummyCategories.filter(category =>
-    ['medicines', 'healthcare', 'diabetes-care', 'heart-care', 'medical-devices', 'vitamins'].includes(category.slug)
-  );
-  const careCategories = dummyCategories.filter(category =>
-    ['skin-care', 'hair-care', 'personal-care', 'baby-care', 'women-care', 'men-care', 'elder-care', 'ayurveda', 'supplements'].includes(category.slug)
-  );
+
+  // Live categories + sub-categories from backend (fallback to dummy).
+  const [cats, setCats] = useState(dummyCategories);
+  const [subCats, setSubCats] = useState([]);
+
+  useEffect(() => {
+    catalogApi.categories().then((list) => { if (list.length) setCats(list); }).catch(() => {});
+    catalogApi.subCategories().then(setSubCats).catch(() => {});
+  }, []);
+
+  const catKey = (c) => c._id || c.id || c.slug;
+  const subsByCategory = useMemo(() => {
+    const map = new Map();
+    subCats.forEach((s) => {
+      const list = map.get(s.category) || [];
+      list.push(s);
+      map.set(s.category, list);
+    });
+    return map;
+  }, [subCats]);
+
+  const half = Math.ceil(cats.length / 2);
+  const medicineCategories = cats.slice(0, half);
+  const careCategories = cats.slice(half);
   const medicineMegaColumns = [
     { title: 'Medicines & Devices', items: medicineCategories },
     { title: 'Care & Wellness', items: careCategories.slice(0, 5) },
@@ -331,21 +350,43 @@ const Header = () => {
                 <div className="grid grid-cols-2 gap-5">
                   <div className="p-5">
                     <p className="mb-3 text-xs font-bold uppercase tracking-wide text-slate-400">Medicines & Devices</p>
-                    <div className="grid gap-2">
+                    <div className="grid gap-3">
                       {medicineCategories.map(category => (
-                        <Link key={category.id} to={`/products?category=${category.slug}`} className="rounded px-3 py-2 text-sm font-medium text-slate-600 hover:bg-teal-50 hover:text-teal-800">
-                          {category.name}
-                        </Link>
+                        <div key={catKey(category)}>
+                          <Link to={`/products?category=${category.slug}`} className="block rounded px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-teal-50 hover:text-teal-800">
+                            {category.name}
+                          </Link>
+                          {(subsByCategory.get(category.name) || []).length > 0 && (
+                            <div className="flex flex-wrap gap-x-3 gap-y-1 px-3 pt-1">
+                              {(subsByCategory.get(category.name) || []).map(sub => (
+                                <Link key={sub._id} to={`/products?category=${category.slug}&sub=${sub.slug}`} className="text-xs font-medium text-slate-500 hover:text-teal-700">
+                                  {sub.name}
+                                </Link>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       ))}
                     </div>
                   </div>
                   <div className="bg-slate-50 p-5">
                     <p className="mb-3 text-xs font-bold uppercase tracking-wide text-slate-400">Care & Wellness</p>
-                    <div className="grid gap-2">
-                      {careCategories.slice(0, 8).map(category => (
-                        <Link key={category.id} to={`/products?category=${category.slug}`} className="rounded px-3 py-2 text-sm font-medium text-slate-600 hover:bg-white hover:text-teal-800">
-                          {category.name}
-                        </Link>
+                    <div className="grid gap-3">
+                      {careCategories.map(category => (
+                        <div key={catKey(category)}>
+                          <Link to={`/products?category=${category.slug}`} className="block rounded px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-white hover:text-teal-800">
+                            {category.name}
+                          </Link>
+                          {(subsByCategory.get(category.name) || []).length > 0 && (
+                            <div className="flex flex-wrap gap-x-3 gap-y-1 px-3 pt-1">
+                              {(subsByCategory.get(category.name) || []).map(sub => (
+                                <Link key={sub._id} to={`/products?category=${category.slug}&sub=${sub.slug}`} className="text-xs font-medium text-slate-500 hover:text-teal-700">
+                                  {sub.name}
+                                </Link>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       ))}
                     </div>
                   </div>

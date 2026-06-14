@@ -1,13 +1,13 @@
 // Validates email format
 export const validateEmail = (email) => {
-  const regex = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;
+  const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return regex.test(email);
 };
 
 // Validates mobile number (10 digits)
 export const validateMobile = (mobile) => {
   const regex = /^[0-9]{10}$/;
-  return regex.test(mobile.replace(/\\D/g, ''));
+  return regex.test(mobile.replace(/\D/g, ''));
 };
 
 // Validates pincode (6 digits)
@@ -54,7 +54,7 @@ export const truncateText = (text, length) => {
 // Calculate reading time for blogs
 export const calculateReadingTime = (text) => {
   const wordsPerMinute = 200;
-  const words = text.split(/\\s+/).length;
+  const words = text.split(/\s+/).length;
   const minutes = Math.ceil(words / wordsPerMinute);
   return `${minutes} min read`;
 };
@@ -91,8 +91,8 @@ export const slugToTitle = (slug) => {
 export const titleToSlug = (title) => {
   return title
     .toLowerCase()
-    .replace(/\\s+/g, '-')
-    .replace(/[^\\w-]/g, '');
+    .replace(/\s+/g, '-')
+    .replace(/[^\w-]/g, '');
 };
 
 // Get discount percentage

@@ -39,8 +39,11 @@ api.interceptors.response.use(
   async (error) => {
     const original = error.config;
     const status = error.response?.status;
+    const isAuthCall = original?.url?.includes('/auth/');
 
-    if (status === 401 && !original._retry && tokens.refresh) {
+    // Don't attempt refresh on auth endpoints — let the real 401 message
+    // (e.g. "Invalid user credentials.") reach the caller.
+    if (status === 401 && !original._retry && tokens.refresh && !isAuthCall) {
       original._retry = true;
       try {
         refreshing =

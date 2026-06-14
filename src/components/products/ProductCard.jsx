@@ -31,17 +31,21 @@ const ProductCard = ({ product }) => {
     setB2BQuantity(nextValue);
   };
 
-  const handleWishlist = (e) => {
+  const handleWishlist = async (e) => {
     e.preventDefault();
+    e.stopPropagation();
     setLoadingAction('wishlist');
-    window.setTimeout(() => {
+    try {
       if (inWishlist) {
-        removeFromWishlist(storefrontProduct.id);
+        await removeFromWishlist(storefrontProduct.id);
+        addToast(`${storefrontProduct.name} removed from wishlist`, 'success');
       } else {
-        addToWishlist(storefrontProduct);
+        await addToWishlist(storefrontProduct);
+        addToast(`${storefrontProduct.name} added to wishlist`, 'success');
       }
+    } finally {
       setLoadingAction('');
-    }, 300);
+    }
   };
 
   const handleAddToCart = (e) => {
@@ -177,6 +181,7 @@ const ProductCard = ({ product }) => {
               {cartQuantity > 0 ? `Add (${cartQuantity})` : storefrontProduct.isB2BPrice ? 'Add B2B' : 'Add'}
             </LoadingButton>
             <button
+              type="button"
               onClick={handleWishlist}
               disabled={loadingAction === 'wishlist'}
               aria-label={inWishlist ? 'Remove from wishlist' : 'Add to wishlist'}

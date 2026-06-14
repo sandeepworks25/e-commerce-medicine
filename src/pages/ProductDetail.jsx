@@ -44,7 +44,6 @@ const B2B_MIN_ORDER_QUANTITY = 10;
 const ProductDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [quantity, setQuantity] = useState(1);
   const [allProducts, setAllProducts] = useState(dummyProducts);
   const product = allProducts.find((p) => String(p.id) === String(id));
   const [activeImage, setActiveImage] = useState(product?.image);
